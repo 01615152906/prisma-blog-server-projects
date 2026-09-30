@@ -1,0 +1,609 @@
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Post {
+  id         String     @id @default(uuid())
+  title      String     @db.VarChar(225)
+  content    String     @db.Text
+  thumbnail  String?
+  isFeatured Boolean    @default(false)
+  status     PostStatus @default(PUBLISHED)
+  tags       String[]
+  views      Int        @default(0)
+  authorId   String // better auth
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  comments   Comment[]
+
+  @@index([authorId])
+  @@map("posts")
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Comment {
+  id       String    @id @default(uuid())
+  content  String    @db.Text
+  authorId String // better auth
+  postId   String
+  post     Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parentId String?
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[] @relation("CommentReplies")
+
+  status    CommentStatus @default(APPROVED)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([postId])
+  @@index([authorId])
+  @@map("comments")
+}
+
+enum CommentStatus {
+  APPROVED
+  REJECT
+}
+
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+
+  role   String? @default("USER")
+  phone  String?
+  status String? @default("ACTIVE")
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  issuer                String
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([issuer, accountId], map: "account_issuer_accountId_uidx")
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// // ============================================================
+// // USER
+// // ============================================================
+
+// model User {
+//   id     Int        @id @default(autoincrement())
+//   email  String     @unique
+//   role   UserRole   @default(USER)
+//   status UserStatus @default(ACTIVE)
+
+//   // Relations
+//   auth          Auth?
+//   profile       Profile?
+//   posts         Post[]
+//   comments      Comment[]
+//   likes         PostLike[]
+//   bookmarks     Bookmark[]
+//   followers     Follow[]       @relation("UserFollowers")
+//   following     Follow[]       @relation("UserFollowing")
+//   notifications Notification[]
+
+//   // Timestamps
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+// }
+
+// // ============================================================
+// // USER ENUMS
+// // ============================================================
+
+// enum UserRole {
+//   USER
+//   ADMIN
+//   MODERATOR
+// }
+
+// enum UserStatus {
+//   ACTIVE
+//   INACTIVE
+//   SUSPENDED
+//   BANNED
+// }
+
+// // ============================================================
+// // PROFILE
+// // ============================================================
+
+// model Profile {
+//   id Int @id @default(autoincrement())
+
+//   // Personal Information
+//   firstName String
+//   lastName  String?
+//   username  String  @unique
+
+//   // Images
+//   profileImage String?
+//   coverImage   String?
+
+//   // About
+//   bio         String?
+//   age         Int?
+//   gender      String?
+//   dateOfBirth DateTime?
+
+//   // Contact
+//   phone      String?
+//   address    String?
+//   city       String?
+//   state      String?
+//   country    String?
+//   postalCode String?
+
+//   // Social Links
+//   website   String?
+//   facebook  String?
+//   instagram String?
+//   twitter   String?
+//   linkedin  String?
+//   github    String?
+//   youtube   String?
+
+//   // Relation
+//   userId Int  @unique
+//   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+//   // Timestamps
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+// }
+
+// // ============================================================
+// // AUTH
+// // ============================================================
+
+// model Auth {
+//   id Int @id @default(autoincrement())
+
+//   // Authentication
+//   provider   AuthProvider @default(LOCAL)
+//   providerId String?
+
+//   // Password
+//   passwordHash String?
+
+//   // Email Verification
+//   emailVerified Boolean   @default(false)
+//   verifiedAt    DateTime?
+
+//   // Login Security
+//   lastLoginAt    DateTime?
+//   lastLoginIp    String?
+//   failedAttempts Int       @default(0)
+//   lockedUntil    DateTime?
+
+//   // Password Reset
+//   resetToken       String?
+//   resetTokenExpiry DateTime?
+
+//   // Email Verification Token
+//   verificationToken       String?
+//   verificationTokenExpiry DateTime?
+
+//   // Relation
+//   userId Int  @unique
+//   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+//   // Timestamps
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+
+//   // Unique Provider
+//   @@unique([provider, providerId])
+// }
+
+// // ============================================================
+// // AUTH ENUM
+// // ============================================================
+
+// enum AuthProvider {
+//   LOCAL
+//   GOOGLE
+//   GITHUB
+//   FACEBOOK
+// }
+
+// // ============================================================
+// // POST
+// // ============================================================
+
+// model Post {
+//   id Int @id @default(autoincrement())
+
+//   // Basic Information
+//   title   String
+//   slug    String  @unique
+//   content String
+//   excerpt String?
+
+//   // Post Type
+//   type PostType @default(ARTICLE)
+
+//   // Status
+//   status     PostStatus @default(DRAFT)
+//   isFeatured Boolean    @default(false)
+
+//   // Statistics
+//   views         Int @default(0)
+//   likesCount    Int @default(0)
+//   commentsCount Int @default(0)
+//   sharesCount   Int @default(0)
+
+//   // Author
+//   userId Int
+//   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+//   // Category
+//   categoryId Int?
+//   category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+//   // Relations
+//   media         Media[]
+//   tags          PostTag[]
+//   comments      Comment[]
+//   likes         PostLike[]
+//   bookmarks     Bookmark[]
+//   notifications Notification[]
+
+//   // SEO
+//   metaTitle       String?
+//   metaDescription String?
+//   keywords        String?
+
+//   // Publishing
+//   publishedAt DateTime?
+
+//   // Timestamps
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+
+//   // Indexes
+//   @@index([userId])
+//   @@index([categoryId])
+//   @@index([status])
+//   @@index([createdAt])
+// }
+
+// // ============================================================
+// // POST ENUMS
+// // ============================================================
+
+// enum PostType {
+//   ARTICLE
+//   PHOTO
+//   VIDEO
+//   MIXED
+// }
+
+// enum PostStatus {
+//   DRAFT
+//   PUBLISHED
+//   ARCHIVED
+// }
+
+// // ============================================================
+// // MEDIA
+// // ============================================================
+
+// model Media {
+//   id Int @id @default(autoincrement())
+
+//   // Media Type
+//   type MediaType
+
+//   // File / URL
+//   url String
+
+//   // Information
+//   title   String?
+//   altText String?
+//   caption String?
+
+//   // Video Information
+//   duration  Int?
+//   thumbnail String?
+
+//   // Storage Provider
+//   provider MediaProvider?
+
+//   // Ordering
+//   position Int @default(0)
+
+//   // Relation
+//   postId Int
+//   post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+//   // Timestamps
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+
+//   // Indexes
+//   @@index([postId])
+//   @@index([type])
+// }
+
+// // ============================================================
+// // MEDIA ENUMS
+// // ============================================================
+
+// enum MediaType {
+//   IMAGE
+//   VIDEO
+// }
+
+// enum MediaProvider {
+//   LOCAL
+//   CLOUDINARY
+//   S3
+//   YOUTUBE
+//   VIMEO
+// }
+
+// // ============================================================
+// // CATEGORY
+// // ============================================================
+
+// model Category {
+//   id Int @id @default(autoincrement())
+
+//   name        String
+//   slug        String  @unique
+//   description String?
+//   image       String?
+
+//   // Relations
+//   posts Post[]
+
+//   // Timestamps
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+// }
+
+// // ============================================================
+// // TAG
+// // ============================================================
+
+// model Tag {
+//   id Int @id @default(autoincrement())
+
+//   name String @unique
+//   slug String @unique
+
+//   // Relations
+//   posts PostTag[]
+
+//   // Timestamps
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+// }
+
+// // ============================================================
+// // POST TAG
+// // ============================================================
+
+// model PostTag {
+//   postId Int
+//   tagId  Int
+
+//   // Relations
+//   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+//   tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+//   // Composite Primary Key
+//   @@id([postId, tagId])
+//   // Index
+//   @@index([tagId])
+// }
+
+// // ============================================================
+// // COMMENT
+// // ============================================================
+
+// model Comment {
+//   id Int @id @default(autoincrement())
+
+//   // Comment Content
+//   content String
+
+//   // User
+//   userId Int
+//   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+//   // Post
+//   postId Int
+//   post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+//   // Reply System
+//   parentId Int?
+
+//   parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+//   replies Comment[] @relation("CommentReplies")
+
+//   // Timestamps
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+
+//   // Indexes
+//   @@index([userId])
+//   @@index([postId])
+//   @@index([parentId])
+// }
+
+// // ============================================================
+// // POST LIKE
+// // ============================================================
+
+// model PostLike {
+//   id Int @id @default(autoincrement())
+
+//   userId Int
+//   postId Int
+
+//   // Relations
+//   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+//   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+//   // Timestamp
+//   createdAt DateTime @default(now())
+
+//   // One user can like a post only once
+//   @@unique([userId, postId])
+//   // Index
+//   @@index([postId])
+// }
+
+// // ============================================================
+// // BOOKMARK
+// // ============================================================
+
+// model Bookmark {
+//   id Int @id @default(autoincrement())
+
+//   userId Int
+//   postId Int
+
+//   // Relations
+//   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+//   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+//   // Timestamp
+//   createdAt DateTime @default(now())
+
+//   // One user can bookmark a post only once
+//   @@unique([userId, postId])
+//   // Index
+//   @@index([postId])
+// }
+
+// // ============================================================
+// // FOLLOW
+// // ============================================================
+
+// model Follow {
+//   id Int @id @default(autoincrement())
+
+//   followerId  Int
+//   followingId Int
+
+//   // Relations
+//   follower  User @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+//   following User @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+//   // Timestamp
+//   createdAt DateTime @default(now())
+
+//   // Prevent duplicate follow
+//   @@unique([followerId, followingId])
+//   // Index
+//   @@index([followingId])
+// }
+
+// // ============================================================
+// // NOTIFICATION
+// // ============================================================
+
+// model Notification {
+//   id Int @id @default(autoincrement())
+
+//   // Notification
+//   type    NotificationType
+//   message String
+//   isRead  Boolean          @default(false)
+
+//   // User
+//   userId Int
+//   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+//   // Related Post
+//   postId Int?
+//   post   Post? @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+//   // Timestamp
+//   createdAt DateTime @default(now())
+
+//   // Indexes
+//   @@index([userId])
+//   @@index([postId])
+//   @@index([isRead])
+//   @@index([createdAt])
+// }
+
+// // ============================================================
+// // NOTIFICATION ENUM
+// // ============================================================
+
+// enum NotificationType {
+//   LIKE
+//   COMMENT
+//   REPLY
+//   FOLLOW
+//   SYSTEM
+// }
